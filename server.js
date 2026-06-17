@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
@@ -73,9 +74,9 @@ app.get('/api/dashboard/:key', (req, res) => {
 
 app.get('/', (req, res) => {
     if (req.query.AdminPanel === ROOT_TOKEN) {
-        return res.sendFile(__dirname + '/admin.html');
+        return res.sendFile(path.join(__dirname, 'admin.html'));
     }
-    res.sendFile(__dirname + '/index.html');
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
