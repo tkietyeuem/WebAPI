@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+    <title>Dashboard/title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0d0d0d; color: #facc15; font-family: 'Inter', sans-serif; }
@@ -28,8 +28,15 @@
     </div>
 
     <div id="dashboard-view" class="w-full max-w-5xl px-6 hidden transition duration-500 opacity-0">
-        <h1 class="text-4xl font-black text-center mb-2 tracking-widest uppercase text-white" style="text-shadow: 0 0 15px rgba(250, 204, 21, 0.5);">Dashboard</h1>
-        <p class="text-center text-xs uppercase tracking-widest text-neutral-500 mb-12">Realtime Session Statistics Terminal</p>
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-4xl font-black tracking-widest uppercase text-white" style="text-shadow: 0 0 15px rgba(250, 204, 21, 0.5);">Dashboard</h1>
+                <p class="text-xs uppercase tracking-widest text-neutral-500 mt-1">Realtime Session Statistics Terminal</p>
+            </div>
+            <button onclick="terminateSession()" class="px-4 py-2 border border-neutral-800 text-neutral-500 hover:text-red-500 font-mono uppercase tracking-widest text-xs transition rounded">
+                Disconnect
+            </button>
+        </div>
 
         <div class="card p-6 rounded-xl gold-glow">
             <div class="overflow-x-auto">
@@ -66,7 +73,10 @@
         async function fetchDatabase() {
             if(!sessionToken) return;
             const response = await fetch(`/api/dashboard/${sessionToken}`);
-            if (response.status !== 200) return;
+            if (response.status !== 200) {
+                terminateSession();
+                return;
+            }
             
             const dataset = await response.json();
             const tbody = document.getElementById('user-table-body');
@@ -91,6 +101,8 @@
             const response = await fetch(`/api/dashboard/${token}`);
             if (response.status === 200) {
                 sessionToken = token;
+                localStorage.setItem('dashboard_session_key', token);
+                
                 document.body.className = "min-h-screen flex flex-col items-center py-12";
                 document.getElementById('auth-gate').classList.add('hidden');
                 
@@ -108,6 +120,19 @@
                 setTimeout(() => errLabel.classList.add('hidden'), 3000);
             }
         }
+
+        function terminateSession() {
+            localStorage.removeItem('dashboard_session_key');
+            window.location.reload();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const cachedToken = localStorage.getItem('dashboard_session_key');
+            if (cachedToken) {
+                document.getElementById('user-api-key').value = cachedToken;
+                initializeSession();
+            }
+        });
     </script>
 </body>
 </html>
