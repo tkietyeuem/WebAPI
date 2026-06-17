@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d0d0d; color: #facc15; font-family: 'Inter', sans-serif; }
+        .gold-glow { box-shadow: 0 0 15px rgba(250, 204, 21, 0.3); }
+        .card { background-color: #151515; border: 1px solid #262626; }
+        .input-gold { background: #0d0d0d; border: 1px solid #333; color: white; outline: none; transition: all 0.3s; }
+        .input-gold:focus { border-color: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.4); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center py-12">
+
+    <div id="auth-gate" class="w-full max-w-md px-6 transition duration-500">
+        <div class="card p-8 rounded-xl gold-glow text-center">
+            <h1 class="text-3xl font-black tracking-widest uppercase text-white mb-2" style="text-shadow: 0 0 15px rgba(250, 204, 21, 0.5);">Dashboard</h1>
+            <p class="text-xs uppercase tracking-widest text-neutral-500 mb-8">Security Gateway Authentication</p>
+            <div class="space-y-4">
+                <input type="text" id="user-api-key" placeholder="ENTER CLIENT API KEY (UUID)" class="input-gold w-full px-4 py-3 rounded uppercase font-mono tracking-wider text-sm text-center">
+                <button onclick="initializeSession()" class="w-full py-3 bg-yellow-500 text-black font-bold rounded uppercase tracking-wider hover:bg-yellow-400 transition text-sm">Initialize Connection</button>
+            </div>
+            <p id="auth-error" class="text-red-500 text-xs font-mono uppercase tracking-wider mt-4 hidden">Invalid credentials or network failure</p>
+        </div>
+    </div>
+
+    <div id="dashboard-view" class="w-full max-w-5xl px-6 hidden transition duration-500 opacity-0">
+        <h1 class="text-4xl font-black text-center mb-2 tracking-widest uppercase text-white" style="text-shadow: 0 0 15px rgba(250, 204, 21, 0.5);">Dashboard</h1>
+        <p class="text-center text-xs uppercase tracking-widest text-neutral-500 mb-12">Realtime Session Statistics Terminal</p>
+
+        <div class="card p-6 rounded-xl gold-glow">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-neutral-300 border-collapse">
+                    <thead>
+                        <tr class="border-b border-neutral-800 text-yellow-500 uppercase text-xs tracking-widest">
+                            <th class="py-4 px-4 font-semibold">Username</th>
+                            <th class="py-4 px-4 font-semibold">Sheckles</th>
+                            <th class="py-4 px-4 font-semibold">Pet</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-table-body" class="divide-y divide-neutral-900 text-sm">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionToken = "";
+
+        function parseAssets(equipped, unequipped) {
+            const assetRegistry = {};
+            if (equipped) equipped.forEach(asset => assetRegistry[asset] = (assetRegistry[asset] || 0) + 1);
+            if (unequipped) unequipped.forEach(asset => assetRegistry[asset] = (assetRegistry[asset] || 0) + 1);
+
+            const outputBuffer = [];
+            for (const [assetName, count] of Object.entries(assetRegistry)) {
+                outputBuffer.push(`${assetName} x${count}`);
+            }
+            return outputBuffer.length > 0 ? outputBuffer.join(', ') : '<span class="text-neutral-600 italic">No Assets Detected</span>';
+        }
+
+        async function fetchDatabase() {
+            if(!sessionToken) return;
+            const response = await fetch(`/api/dashboard/${sessionToken}`);
+            if (response.status !== 200) return;
+            
+            const dataset = await response.json();
+            const tbody = document.getElementById('user-table-body');
+            tbody.innerHTML = '';
+            
+            dataset.forEach(session => {
+                const inventoryPayload = parseAssets(session.equippedPets, session.unequippedPets);
+                tbody.innerHTML += `
+                    <tr class="hover:bg-neutral-900/40 transition">
+                        <td class="py-4 px-4 font-bold text-white tracking-wide">${session.username}</td>
+                        <td class="py-4 px-4 text-yellow-500 font-mono font-bold">${session.sheckles.toLocaleString()}</td>
+                        <td class="py-4 px-4 font-medium text-neutral-200">${inventoryPayload}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function initializeSession() {
+            const token = document.getElementById('user-api-key').value.trim();
+            if(!token) return;
+
+            const response = await fetch(`/api/dashboard/${token}`);
+            if (response.status === 200) {
+                sessionToken = token;
+                document.body.className = "min-h-screen flex flex-col items-center py-12";
+                document.getElementById('auth-gate').classList.add('hidden');
+                
+                const dashView = document.getElementById('dashboard-view');
+                dashView.classList.remove('hidden');
+                setTimeout(() => {
+                    dashView.classList.remove('opacity-0');
+                }, 50);
+
+                fetchDatabase();
+                setInterval(fetchDatabase, 15000);
+            } else {
+                const errLabel = document.getElementById('auth-error');
+                errLabel.classList.remove('hidden');
+                setTimeout(() => errLabel.classList.add('hidden'), 3000);
+            }
+        }
+    </script>
+</body>
+</html>
