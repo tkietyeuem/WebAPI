@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 
 const app = express();
+app.set('trust proxy', true);
 app.use(express.json());
 app.use(cors());
 
@@ -36,7 +37,7 @@ app.delete('/admin/key/:key', authenticateRootRequest, (req, res) => {
 
 app.post('/api/update', (req, res) => {
     const { apiKey, username, sheckles, equippedPets, unequippedPets } = req.body;
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     if (!tokenRegistry[apiKey]) return res.status(401).json({ error: 'INVALID_TOKEN' });
 
