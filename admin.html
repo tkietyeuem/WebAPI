@@ -3,110 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control Panel | Admin Restricted</title>
+    <title>Control Panel Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0d0d0d; color: #facc15; font-family: 'Inter', sans-serif; }
-        .gold-glow { box-shadow: 0 0 20px rgba(250, 204, 21, 0.3); }
+        .gold-glow { box-shadow: 0 0 15px rgba(250, 204, 21, 0.3); }
         .card { background-color: #151515; border: 1px solid #262626; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center py-12">
+<body class="min-h-screen py-12 px-6 flex flex-col items-center">
 
-    <div class="w-full max-w-6xl px-6">
-        <div class="flex justify-between items-center mb-12 pb-6 border-b border-neutral-800">
-            <div>
-                <h1 class="text-3xl font-black tracking-widest uppercase text-white">ROOT PANEL</h1>
-                <p class="text-xs uppercase tracking-wider text-neutral-500 mt-1">Kernel Authentication Required</p>
-            </div>
-            <button onclick="executeKeyGeneration()" class="px-6 py-3 bg-yellow-500 text-black font-bold uppercase tracking-wider rounded shadow-lg hover:bg-yellow-400 transition transform active:scale-95 gold-glow text-sm">
-                Create New API Key
-            </button>
+    <div class="w-full max-w-6xl mb-8 flex justify-between items-center">
+        <div>
+            <h1 class="text-4xl font-black tracking-widest uppercase text-white" style="text-shadow: 0 0 15px rgba(250, 204, 21, 0.5);">Control Panel</h1>
+            <p class="text-xs uppercase tracking-widest text-neutral-500 mt-1">Central API Registry Terminal</p>
         </div>
+        <button onclick="createNewKey()" class="px-6 py-3 bg-yellow-500 text-black font-bold rounded uppercase tracking-wider hover:bg-yellow-400 transition text-sm shadow-lg shadow-yellow-500/20">
+            Create New API Key
+        </button>
+    </div>
 
-        <div class="card p-8 rounded-xl gold-glow">
-            <h2 class="text-xl font-bold uppercase tracking-widest mb-6 text-white flex items-center">
-                <span class="w-2 h-2 bg-yellow-500 rounded-full mr-3 animate-pulse"></span> Active Token Registry
-            </h2>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-neutral-300 border-collapse">
-                    <thead>
-                        <tr class="border-b border-neutral-800 text-yellow-500 uppercase text-xs tracking-widest">
-                            <th class="py-4 px-6 font-semibold">API Key (UUID)</th>
-                            <th class="py-4 px-6 font-semibold">Bound IP Address</th>
-                            <th class="py-4 px-6 font-semibold">Status</th>
-                            <th class="py-4 px-6 font-semibold text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="admin-table-body" class="divide-y divide-neutral-900 text-sm">
-                    </tbody>
-                </table>
-            </div>
+    <div class="w-full max-w-6xl card rounded-xl gold-glow p-6">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-neutral-300 border-collapse">
+                <thead>
+                    <tr class="border-b border-neutral-800 text-yellow-500 uppercase text-xs tracking-widest">
+                        <th class="py-4 px-4 font-semibold">Client API Key (UUID)</th>
+                        <th class="py-4 px-4 font-semibold">Bound Account</th>
+                        <th class="py-4 px-4 font-semibold">Bound Location IP</th>
+                        <th class="py-4 px-4 font-semibold">Status</th>
+                        <th class="py-4 px-4 font-semibold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="extensions-registry" class="divide-y divide-neutral-900 text-sm font-mono">
+                </tbody>
+            </table>
         </div>
     </div>
 
     <script>
-        const endpointParams = new URLSearchParams(window.location.search);
-        const rootToken = endpointParams.get('AdminPanel');
+        const rootAccessKey = new URLSearchParams(window.location.search).get('AdminPanel') || "";
 
-        async function synchronizeRegistry() {
-            const response = await fetch('/admin/keys', {
-                headers: { 'x-admin-key': rootToken }
-            });
-            
-            if (response.status !== 200) {
-                document.body.innerHTML = `<div class="text-red-500 font-mono font-bold uppercase tracking-widest mt-20 text-xl text-center">STATUS 403: ACCESS_DENIED</div>`;
-                return;
-            }
+        async function fetchRegistry() {
+            if (!rootAccessKey) return;
+            try {
+                const response = await fetch(`/admin/keys?AdminPanel=${rootAccessKey}`);
+                if (response.status !== 200) return;
+                
+                const registry = await response.json();
+                
+                const activeResponse = await fetch(`/api/dashboard/${rootAccessKey}`).catch(() => null);
+                let activeAccounts = {};
+                if (activeResponse && activeResponse.status === 200) {
+                    const activeData = await activeResponse.json();
+                    activeData.forEach(session => {
+                        activeAccounts[session.apiKey] = session.username;
+                    });
+                }
 
-            const registryData = await response.json();
-            const tbody = document.getElementById('admin-table-body');
-            tbody.innerHTML = '';
+                const tbody = document.getElementById('extensions-registry');
+                tbody.innerHTML = '';
 
-            for (const [token, metadata] of Object.entries(registryData)) {
-                tbody.innerHTML += `
-                    <tr class="hover:bg-neutral-900/50 transition">
-                        <td class="py-4 px-6 font-mono font-bold tracking-wide text-white select-all">${token}</td>
-                        <td class="py-4 px-6 font-mono text-neutral-400">${metadata.ip || '<span class="text-neutral-600 italic">Unbound</span>'}</td>
-                        <td class="py-4 px-6">
-                            <span class="px-2 py-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 text-xs font-semibold uppercase tracking-wider rounded">
-                                ${metadata.status}
-                            </span>
-                        </td>
-                        <td class="py-4 px-6 text-right">
-                            <button onclick="terminateToken('${token}')" class="text-neutral-500 hover:text-red-500 font-mono uppercase tracking-widest text-xs transition">
-                                Delete
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }
+                for (const [keyString, meta] of Object.entries(registry)) {
+                    const resolvedIp = meta.ip ? `<span class="text-emerald-400 font-bold">${meta.ip}</span>` : `<span class="text-neutral-600 italic">Unbound</span>`;
+                    const boundAccount = activeAccounts[keyString] || meta.username || `<span class="text-neutral-600 italic">None</span>`;
+                    
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-neutral-900/40 transition">
+                            <td class="py-4 px-4 text-white font-bold select-all tracking-wide">${keyString}</td>
+                            <td class="py-4 px-4 text-yellow-500 font-bold">${boundAccount}</td>
+                            <td class="py-4 px-4">${resolvedIp}</td>
+                            <td class="py-4 px-4">
+                                <span class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    ${meta.status || 'Active'}
+                                </span>
+                            </td>
+                            <td class="py-4 px-4 text-right">
+                                <button onclick="revokeKey('${keyString}')" class="px-3 py-1 border border-neutral-800 text-neutral-500 hover:text-red-500 hover:border-red-500/30 font-bold uppercase text-xs transition rounded">
+                                    Revoke
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (err) {}
         }
 
-        async function executeKeyGeneration() {
-            await fetch('/admin/key', { 
-                method: 'POST',
-                headers: { 'x-admin-key': rootToken }
-            });
-            synchronizeRegistry();
+        async function createNewKey() {
+            if (!rootAccessKey) return;
+            try {
+                const response = await fetch(`/admin/key?AdminPanel=${rootAccessKey}`, { method: 'POST' });
+                if (response.status === 200) {
+                    fetchRegistry();
+                }
+            } catch (err) {}
         }
 
-        async function terminateToken(token) {
-            if(confirm("Terminate selected access token?")) {
-                await fetch(`/admin/key/${token}`, { 
-                    method: 'DELETE',
-                    headers: { 'x-admin-key': rootToken }
-                });
-                synchronizeRegistry();
-            }
+        async function revokeKey(targetKey) {
+            if (!rootAccessKey || !confirm(`Confirm permanent deletion of key:\n${targetKey}`)) return;
+            try {
+                const response = await fetch(`/admin/key/${targetKey}?AdminPanel=${rootAccessKey}`, { method: 'DELETE' });
+                if (response.status === 200) {
+                    fetchRegistry();
+                }
+            } catch (err) {}
         }
 
-        if(rootToken) {
-            synchronizeRegistry();
-        } else {
-            document.body.innerHTML = `<div class="text-red-500 font-mono font-bold uppercase tracking-widest mt-20 text-xl text-center">STATUS 403: ACCESS_DENIED</div>`;
-        }
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchRegistry();
+            setInterval(fetchRegistry, 5000);
+        });
     </script>
 </body>
 </html>
