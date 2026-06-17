@@ -31,7 +31,7 @@ function authenticateRootRequest(req, res, next) {
 
 app.post('/admin/key', authenticateRootRequest, (req, res) => {
     const generatedToken = uuidv4();
-    tokenRegistry[generatedToken] = { ip: null, status: 'Active' };
+    tokenRegistry[generatedToken] = { ip: null, username: null, status: 'Active' };
     res.json({ key: generatedToken, data: tokenRegistry[generatedToken] });
 });
 
@@ -52,13 +52,14 @@ app.post('/api/update', (req, res) => {
 
     if (!tokenRegistry[apiKey].ip) {
         tokenRegistry[apiKey].ip = clientIp;
+        tokenRegistry[apiKey].username = username;
     } else if (tokenRegistry[apiKey].ip !== clientIp) {
         return res.status(403).json({ error: 'IP_MUTATION_BLOCKED' });
     }
 
     const timestamp = Date.now();
     const sessionIndex = activeSessions.findIndex(session => session.username === username && session.apiKey === apiKey);
-    const payload = { apiKey, username, sheckles, equippedPets, unequippedPets, lastUpdated: timestamp };
+    const payload = { apiKey, username, sheckles, equippedPets: equippedPets || [], unequippedPets: unequippedPets || [], lastUpdated: timestamp };
 
     if (sessionIndex > -1) {
         activeSessions[sessionIndex] = payload;
@@ -71,6 +72,10 @@ app.post('/api/update', (req, res) => {
 
 app.get('/api/dashboard/:key', (req, res) => {
     const targetToken = req.params.key;
+    if (targetToken === ROOT_TOKEN) {
+        return res.json(activeSessions);
+    }
+    
     if (!tokenRegistry[targetToken]) return res.status(401).json({ error: 'INVALID_TOKEN' });
 
     const currentTimestamp = Date.now();
