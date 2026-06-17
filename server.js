@@ -12,6 +12,15 @@ const ROOT_TOKEN = process.env.ADMIN_ACCESS_KEY || "7c9e6b3a-5d2f-4c1a-8b9e-2f3a
 const tokenRegistry = {};
 let activeSessions = [];
 
+function extractClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+        const ipList = forwarded.split(',');
+        return ipList[0].trim();
+    }
+    return req.ip || req.socket.remoteAddress;
+}
+
 function authenticateRootRequest(req, res, next) {
     const inboundRootToken = req.headers['x-admin-key'] || req.query.AdminPanel;
     if (!inboundRootToken || inboundRootToken !== ROOT_TOKEN) {
@@ -37,7 +46,7 @@ app.delete('/admin/key/:key', authenticateRootRequest, (req, res) => {
 
 app.post('/api/update', (req, res) => {
     const { apiKey, username, sheckles, equippedPets, unequippedPets } = req.body;
-    const clientIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = extractClientIp(req);
 
     if (!tokenRegistry[apiKey]) return res.status(401).json({ error: 'INVALID_TOKEN' });
 
