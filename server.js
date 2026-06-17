@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const ROOT_TOKEN = process.env.ADMIN_ACCESS_KEY || "getgen-admin-token-secret";
+const ROOT_TOKEN = process.env.ADMIN_ACCESS_KEY || "7c9e6b3a-5d2f-4c1a-8b9e-2f3a4b5c6d7e";
 const tokenRegistry = {};
 let activeSessions = [];
 
